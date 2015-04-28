@@ -4,8 +4,8 @@
 # HTTP redirect to HTTPS
 #
 server {
-    listen 80;
-    return 301 https://$host$request_uri;
+	listen 80;
+	return 301 https://$host$request_uri;
 }
 
 # Static WebUI files over HTTPS
@@ -17,8 +17,8 @@ server {
 	index index.html index.htm;
 
 	server_name localhost;
-	
-        # Enable HTTPS
+
+		# Enable HTTPS
 	ssl on;
 	ssl_certificate  /etc/nginx/cert/st2.crt;
 	ssl_certificate_key /etc/nginx/cert/st2.key;
@@ -37,7 +37,7 @@ server {
 server {
 	listen 49101;
 	server_name localhost;
-	
+
 	# Enable HTTPS
 	ssl on;
 	ssl_certificate  /etc/nginx/cert/st2.crt;
@@ -50,22 +50,33 @@ server {
 	ssl_prefer_server_ciphers on;
 
 	location / {
+		if ($request_method = 'OPTIONS') {
+
+			add_header 'Access-Control-Allow-Origin' '*';
+			add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+	 		add_header 'Access-Control-Allow-Headers' 'x-auth-token,DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type';
+			add_header 'Access-Control-Max-Age' 1728000;
+			add_header 'Content-Type' 'text/plain charset=UTF-8';
+			add_header 'Content-Length' 0;
+
+			return 204;
+		 }
 		proxy_pass http://localhost:9101;
 
-		# To make work streaming (Event-source / server-sent events) 
+		# To make work streaming (Event-source / server-sent events)
 		proxy_set_header Connection '';
-        	proxy_http_version 1.1;
-        	chunked_transfer_encoding off;
-        	proxy_buffering off;
-        	proxy_cache off;
-        	proxy_set_header Host $host;
+			proxy_http_version 1.1;
+			chunked_transfer_encoding off;
+			proxy_buffering off;
+			proxy_cache off;
+			proxy_set_header Host $host;
 	}
 }
 
 # Authentiation (st2auth) over HTTPS with uWSGI
 #
 upstream st2auth {
-    server unix://opt/stackstorm/st2auth.sock;
+	server unix://opt/stackstorm/st2auth.sock;
 }
 
 server {
@@ -77,7 +88,7 @@ server {
 	ssl_certificate_key /etc/nginx/cert/st2.key;
 
 	ssl_session_timeout 5m;
-	
+
 	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
 	ssl_ciphers "HIGH:!aNULL:!MD5 or HIGH:!aNULL:!MD5:!3DES";
 	ssl_prefer_server_ciphers on;
@@ -86,12 +97,12 @@ server {
 	location / {
 		uwsgi_pass st2auth;
 		include /etc/nginx/uwsgi_params_st2auth;
-		
+
 		proxy_set_header Host $host;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_pass_header Authorization;
-	
+
 		limit_except OPTIONS {
 			auth_pam "Restricted";
 			auth_pam_service_name  /etc/st2/htpasswd;
